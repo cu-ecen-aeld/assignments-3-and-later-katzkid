@@ -1,4 +1,9 @@
 #include "systemcalls.h"
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -16,8 +21,14 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
+    
+    int ret = system(cmd);
+    if(ret == 0)
+         return true;
+    else
+         return false;
 
-    return true;
+    //return true;
 }
 
 /**
@@ -58,10 +69,36 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    pid_t pid;
+    int ret;
+    int fd[2];
+    pipe(fd);
+    pid = fork();
+    if (pid == -1)
+    {
+        perror("Fork failed");
+    }
+    else
+    {
+        close(fd[0]);//child process cannot read
+        ret = execv(command[0], command);
+        //if execv returns, an error occurred
+        write(fd[1], &ret, sizeof(ret));
+        close(fd[1]);
+        exit(0);
+    }
+
+    waitpid(pid, NULL, 0);
+    close(fd[1]);//parent cannot write
+    read(fd[0], &ret, sizeof(ret));
+    close(fd[0]);
+    
 
     va_end(args);
-
-    return true;
+    if (ret != 0)
+        return false;
+    else
+        return true;
 }
 
 /**
@@ -92,8 +129,37 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+    int fd_file = open(outputfile, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
+    pid_t pid;
+    int ret;
+    int fd[2];
+    pipe(fd);
+    pid = fork();
+    if (pid == -1)
+    {
+        perror("Fork failed");
+    }
+    else
+    {
+        close(fd[0]);//child process cannot read
+        dup2(fd_file, 1);//redirect standard out to file
+        close(fd_file);
+        ret = execv(command[0], command);
+        //if execv returns, an error occurred
+        write(fd[1], &ret, sizeof(ret));
+        close(fd[1]);
+        exit(0);
+    }
+
+    waitpid(pid, NULL, 0);
+    close(fd[1]);//parent cannot write
+    read(fd[0], &ret, sizeof(ret));
+    close(fd[0]);
+    
 
     va_end(args);
-
-    return true;
+    if (ret != 0)
+        return false;
+    else
+        return true;
 }
