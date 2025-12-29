@@ -71,28 +71,25 @@ bool do_exec(int count, ...)
 */
     pid_t pid;
     int ret;
-    int fd[2];
-    pipe(fd);
     pid = fork();
     if (pid == -1)
     {
         perror("Fork failed");
     }
-    else
+    if(pid == 0) //child process
     {
-        close(fd[0]);//child process cannot read
-        ret = execv(command[0], command);
+        execv(command[0], command);
         //if execv returns, an error occurred
-        write(fd[1], &ret, sizeof(ret));
-        close(fd[1]);
-        exit(0);
+        perror("execv failed");
+        exit(1);
     }
 
-    waitpid(pid, NULL, 0);
-    close(fd[1]);//parent cannot write
-    read(fd[0], &ret, sizeof(ret));
-    close(fd[0]);
-    
+    int status;
+    waitpid(pid, &status, 0);
+    if (WIFEXITED(status))
+    {
+        ret = WEXITSTATUS(status);
+    }
 
     va_end(args);
     if (ret != 0)
@@ -130,32 +127,29 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *
 */
     int fd_file = open(outputfile, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
-    pid_t pid;
+     pid_t pid;
     int ret;
-    int fd[2];
-    pipe(fd);
     pid = fork();
     if (pid == -1)
     {
         perror("Fork failed");
     }
-    else
+    if(pid == 0) //child process
     {
-        close(fd[0]);//child process cannot read
-        dup2(fd_file, 1);//redirect standard out to file
+        dup2(fd_file, STDOUT_FILENO);
         close(fd_file);
-        ret = execv(command[0], command);
+        execv(command[0], command);
         //if execv returns, an error occurred
-        write(fd[1], &ret, sizeof(ret));
-        close(fd[1]);
-        exit(0);
+        perror("execv failed");
+        exit(1);
     }
 
-    waitpid(pid, NULL, 0);
-    close(fd[1]);//parent cannot write
-    read(fd[0], &ret, sizeof(ret));
-    close(fd[0]);
-    
+    int status;
+    waitpid(pid, &status, 0);
+    if (WIFEXITED(status))
+    {
+        ret = WEXITSTATUS(status);
+    }
 
     va_end(args);
     if (ret != 0)
