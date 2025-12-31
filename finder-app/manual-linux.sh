@@ -4,15 +4,13 @@
 
 set -e
 set -u
-
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 OUTDIR=/tmp/aeld
 KERNEL_REPO=git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
 KERNEL_VERSION=v5.15.163
 BUSYBOX_VERSION=1_33_1
-FINDER_APP_DIR=$(realpath $(dirname $0))
 ARCH=arm64
 CROSS_COMPILE=aarch64-none-linux-gnu-
-LINUX_SOURCE=$OUTDIR/linux-stable
 
 if [ $# -lt 1 ]
 then
@@ -45,7 +43,7 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
 fi
 
 echo "Adding the Image in outdir"
-cp -a $LINUX_SOURCE/arch/arm64/boot/Image $OUTDIR
+cp -a $OUTDIR/linux-stable/arch/arm64/boot/Image $OUTDIR
 
 echo "Creating the staging directory for the root filesystem"
 cd "$OUTDIR"
@@ -99,7 +97,8 @@ sudo mknod -m 666 dev/NULL c 1 3
 sudo mknod -m 600 dev/console c 5 1
 
 # TODO: Clean and build the writer utility
-cd /home/katzkid/Documents/coursera_boulder/assignment-1-katzkid/finder-app/
+echo "The script directory is: ${SCRIPT_DIR}"
+cd "${SCRIPT_DIR}"
 make clean
 make CROSS_COMPILE=$CROSS_COMPILE
 
