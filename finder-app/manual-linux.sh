@@ -12,6 +12,7 @@ BUSYBOX_VERSION=1_33_1
 FINDER_APP_DIR=$(realpath $(dirname $0))
 ARCH=arm64
 CROSS_COMPILE=aarch64-none-linux-gnu-
+LINUX_SOURCE=$OUTDIR/linux-stable
 
 if [ $# -lt 1 ]
 then
@@ -44,7 +45,7 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
 fi
 
 echo "Adding the Image in outdir"
-cp -a $OUTDIR/linux-stable/arch/arm64/boot/Image $OUTDIR
+cp -a $LINUX_SOURCE/arch/arm64/boot/Image $OUTDIR
 
 echo "Creating the staging directory for the root filesystem"
 cd "$OUTDIR"
@@ -78,23 +79,24 @@ fi
 make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE}
 make CONFIG_PREFIX=$OUTDIR/rootfs ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} install
 
+cd $OUTDIR/rootfs
 echo "Library dependencies"
-${CROSS_COMPILE}readelf -a $OUTDIR/rootfs/bin/busybox | grep "program interpreter"
-${CROSS_COMPILE}readelf -a $OUTDIR/rootfs/bin/busybox | grep "Shared library"
+${CROSS_COMPILE}readelf -a bin/busybox | grep "program interpreter"
+${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
 # TODO: Add library dependencies to rootfs
 SYSROOT=$(${CROSS_COMPILE}gcc -print-sysroot)
 echo "The qemu sysroot is at: $SYSROOT"
 
-cp -a $SYSROOT/lib/ld-linux-aarch64.so.1 $OUTDIR/rootfs/lib/
-cp -a $SYSROOT/lib64/libm.so.6 $OUTDIR/rootfs/lib64/
-cp -a $SYSROOT/lib64/libc.so.6 $OUTDIR/rootfs/lib64/
-cp -a $SYSROOT/lib64/libresolv.so.2 $OUTDIR/rootfs/lib64/
+cp -a $SYSROOT/lib/ld-linux-aarch64.so.1 lib/
+cp -a $SYSROOT/lib64/libm.so.6 lib64/
+cp -a $SYSROOT/lib64/libc.so.6 lib64/
+cp -a $SYSROOT/lib64/libresolv.so.2 lib64/
 
 
 # TODO: Make device nodes
-sudo mknod -m 666 $OUTDIR/rootfs/dev/NULL c 1 3
-sudo mknod -m 600 $OUTDIR/rootfs/dev/console c 5 1
+sudo mknod -m 666 dev/NULL c 1 3
+sudo mknod -m 600 dev/console c 5 1
 
 # TODO: Clean and build the writer utility
 cd /home/katzkid/Documents/coursera_boulder/assignment-1-katzkid/finder-app/
@@ -111,7 +113,7 @@ cp -a writer $OUTDIR/rootfs/home/
 
 sed -i 's|\.\./conf/assignment.txt|conf/assignment.txt|' "$OUTDIR/rootfs/home/finder-test.sh"
 
-cp -a /home/katzkid/Documents/coursera_boulder/assignment-1-katzkid/finder-app/autorun-qemu.sh $OUTDIR/rootfs/home/
+cp -a autorun-qemu.sh $OUTDIR/rootfs/home/
 
 cd "${OUTDIR}/rootfs/home"
 # Change #!/bin/bash to #!/bin/sh in all scripts
