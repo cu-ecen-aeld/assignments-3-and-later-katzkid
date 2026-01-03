@@ -71,6 +71,7 @@ bool start_thread_obtaining_mutex(pthread_t *thread, pthread_mutex_t *mutex,int 
     return true; //success
 }
 
+/*
 int main()
 {
     pthread_t thread;
@@ -108,4 +109,4 @@ int main()
 
     return 0;
 }
-
+*/
