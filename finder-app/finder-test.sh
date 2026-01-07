@@ -57,7 +57,7 @@ do
 	writer "$WRITEDIR/${username}$i.txt" "$WRITESTR"
 done
 
-OUTPUTSTRING=$(finder.sh "$WRITEDIR" "$WRITESTR")
+OUTPUTSTRING=$(/usr/bin/finder.sh "$WRITEDIR" "$WRITESTR")
 
 # write OUTPUTSTRING to a file
 echo "${OUTPUTSTRING}" > /tmp/assignment4-result.txt
