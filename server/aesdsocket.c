@@ -108,42 +108,25 @@ int main(int argc, char *argv[]) {
             total_recv += nr;
             buffer[total_recv] = '\0';
 
-            if (memchr(buffer, '\n', total_recv)) 
-            {
+            if (memchr(buffer, '\n', total_recv)) {
                 
-                // --- WRITE PHASE ---
                 int data_fd = open("/var/tmp/aesdsocketdata", O_WRONLY | O_APPEND | O_CREAT, 0666);
-                if (data_fd != -1) {
-                    write(data_fd, buffer, total_recv);
-                    fsync(data_fd); // Ensure data hits the disk
-                    close(data_fd);
-                }
+                write(data_fd, buffer, total_recv);
+                fsync(data_fd); // Crucial for Valgrind
+                close(data_fd); // Forces metadata sync
 
-                // --- SEND PHASE ---
                 data_fd = open("/var/tmp/aesdsocketdata", O_RDONLY);
-                if (data_fd != -1) {
-                    char r_buf[1024];
-                    ssize_t r_bytes;
-                    while ((r_bytes = read(data_fd, r_buf, sizeof(r_buf))) > 0) {
-                        send_all(new_sockfd, r_buf, r_bytes);
-                    }
-                    close(data_fd);
+                char r_buf[1024];
+                ssize_t r_bytes;
+                while ((r_bytes = read(data_fd, r_buf, sizeof(r_buf))) > 0) {
+                    send_all(new_sockfd, r_buf, r_bytes);
                 }
+                close(data_fd);
                 
-                // --- CLEANUP PHASE ---
-                // 1. Tell client we are done sending data
-                shutdown(new_sockfd, SHUT_WR);
-                
-                // 2. IMPORTANT: Drain the socket
-                // This prevents the "Unread Data" RST packet issue
-                // We keep reading until recv returns 0 (Client FIN) or -1 (Error)
-                char dummy[1024];
-                while (recv(new_sockfd, dummy, sizeof(dummy), 0) > 0) {
-                    // Do nothing, just drain
-                }
-
-                // 3. Now we can break and close the socket cleanly
-                break; 
+                total_recv = 0; // reset for next potential line
+                fsync(new_sockfd); // Try to flush the socket
+                shutdown(new_sockfd, SHUT_WR); // Tell the tester "I am done sending"
+                break; // Break after each newline
             }
 
             if (total_recv >= buf_size - 1) {
