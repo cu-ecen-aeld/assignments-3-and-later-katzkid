@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
     // ignore the SIGPIPE signal
-    signal(SIGPIPE, SIG_IGN);
+    sigaction(SIGPIPE, SIG_IGN);
 
     openlog("aesdsocket", LOG_PID, LOG_USER);
 
