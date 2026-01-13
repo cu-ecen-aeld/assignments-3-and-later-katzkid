@@ -30,6 +30,7 @@ int send_all(int s, char *buf, int len) {
 }
 
 int main(int argc, char *argv[]) {
+    syslog(LOG_INFO, "AESD SOCKET STARTING - VERSION WITH FIXES");
     struct sockaddr_storage their_addr;
     socklen_t addr_size;
     struct addrinfo hints, *servinfo;
@@ -108,18 +109,18 @@ int main(int argc, char *argv[]) {
             total_recv += nr;
             buffer[total_recv] = '\0';
 
-            if (memchr(buffer, '\n', total_recv)) 
-            {
+            // Check for newline
+            if (memchr(buffer, '\n', total_recv)) {
                 
-                // --- WRITE PHASE ---
+                // 1. APPEND TO FILE
                 int data_fd = open("/var/tmp/aesdsocketdata", O_WRONLY | O_APPEND | O_CREAT, 0666);
                 if (data_fd != -1) {
                     write(data_fd, buffer, total_recv);
-                    fsync(data_fd); // Ensure data hits the disk
+                    fsync(data_fd); // CRITICAL: Flush to disk
                     close(data_fd);
                 }
 
-                // --- SEND PHASE ---
+                // 2. READ HISTORY AND SEND
                 data_fd = open("/var/tmp/aesdsocketdata", O_RDONLY);
                 if (data_fd != -1) {
                     char r_buf[1024];
@@ -130,25 +131,27 @@ int main(int argc, char *argv[]) {
                     close(data_fd);
                 }
                 
-                // --- CLEANUP PHASE ---
-                // 1. Tell client we are done sending data
+                // 3. FINISH TRANSACTION
+                // Send FIN to client ("I'm done sending")
                 shutdown(new_sockfd, SHUT_WR);
                 
-                // 2. IMPORTANT: Drain the socket
-                // This prevents the "Unread Data" RST packet issue
-                // We keep reading until recv returns 0 (Client FIN) or -1 (Error)
-                char dummy[1024];
+                // 4. DRAIN CLIENT
+                // Read until client closes (fixes the RST issue)
+                char dummy[128];
                 while (recv(new_sockfd, dummy, sizeof(dummy), 0) > 0) {
-                    // Do nothing, just drain
+                    ; // Drain buffer
                 }
-
-                // 3. Now we can break and close the socket cleanly
-                break; 
+                
+                total_recv = 0; 
+                break; // Close connection
             }
 
+            // Realloc if buffer is full...
             if (total_recv >= buf_size - 1) {
                 buf_size += 1024;
-                buffer = realloc(buffer, buf_size);
+                char *new_buf = realloc(buffer, buf_size);
+                if (!new_buf) break; // Error handling
+                buffer = new_buf;
             }
         }
         free(buffer);
