@@ -47,6 +47,8 @@ int main(int argc, char *argv[]) {
     struct sigaction sa = {.sa_handler = signal_handler};
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
+    // ignore the SIGPIPE signal
+    sigaction(SIGPIPE, SIG_IGN);
 
     openlog("aesdsocket", LOG_PID, LOG_USER);
 
