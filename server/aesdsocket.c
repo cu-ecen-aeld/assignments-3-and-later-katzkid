@@ -124,6 +124,8 @@ int main(int argc, char *argv[]) {
                 close(data_fd);
                 
                 total_recv = 0; // reset for next potential line
+                fsync(new_sockfd); // Try to flush the socket
+                shutdown(new_sockfd, SHUT_WR); // Tell the tester "I am done sending"
                 break; // Break after each newline
             }
 
